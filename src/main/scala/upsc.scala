@@ -31,7 +31,7 @@ object UPSC {
     if (fileExists(upscLocation))
       (s"$upscLocation $param" !!).split('\n').right
     else
-      "File doesn't exist.".left
+      "upsc binary doesn't exist.".left
   }
 
   def getValueFromParam(param: String): \/[String, Double] = {
