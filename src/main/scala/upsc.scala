@@ -11,12 +11,13 @@ object UPSC {
 
   def parseConfig(args: Array[String]): \/[String, Config] = {
       val parser = new scopt.OptionParser[Config]("scopt") {
-      head("check_upsc", "1.x")
+      head("check_upsc", "1.0")
       opt[String]('d', "dev") action { (x, c) =>
         c.copy(dev = x) } text("dev is a required parameter, ie. USER@HOSTNAME")
       opt[Map[String, String]]('c', "check") valueName("k1=v1,k2=v2...") action { (x, c) =>
         c.copy(check = x) } text("This specifies what to check and when to give a warning or critical message, ie. ups.load=w:80;c:90")
       help("help") text("prints this usage text")
+      note("\nBoth --check and --dev need to be defined!")
     }
 
     parser.parse(args, Config()) match {
