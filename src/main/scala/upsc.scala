@@ -10,7 +10,7 @@ object UPSC {
   val upscLocation = "/usr/bin/upsc"
 
   def parseConfig(args: Array[String]): \/[String, Config] = {
-      val parser = new scopt.OptionParser[Config]("scopt") {
+      val parser = new scopt.OptionParser[Config]("check_upsc") {
       head("check_upsc", "1.0")
       opt[String]('d', "dev") required() action { (x, c) =>
         c.copy(dev = x) } text("dev is a required parameter, ie. USER@HOSTNAME")
