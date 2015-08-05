@@ -15,4 +15,6 @@ libraryDependencies += "com.github.scopt" %% "scopt" % "3.3.0"
 
 libraryDependencies += "org.scalaz" %% "scalaz-core" % "7.1.3"
 
+libraryDependencies += "org.parboiled" %% "parboiled" % "2.1.0"
+
 resolvers += Resolver.sonatypeRepo("public")
