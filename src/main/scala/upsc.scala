@@ -14,8 +14,8 @@ object UPSC {
       head("check_upsc", "1.0")
       opt[String]('d', "dev") required() action { (x, c) =>
         c.copy(dev = x) } text("dev is a required parameter, ie. USER@HOSTNAME")
-      opt[Map[String, String]]('c', "check") required() valueName("k1=v1,k2=v2...") action { (x, c) =>
-        c.copy(check = x) } text("This specifies what to check and when to give a warning or critical message, ie. ups.load=w:80&c:90")
+      opt[Map[String, String]]('c', "check") required() unbounded() valueName("k1=v1,...") action { (x, c) =>
+          c.copy(check = c.check ++ x) } text("This specifies what to check and when to give a warning or critical message, ie. ups.load=w:80&c:90")
       help("help") text("prints this usage text")
       note("\nBoth --check and --dev need to be defined!")
     }
