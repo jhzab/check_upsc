@@ -56,7 +56,6 @@ object UPSC {
   }
 
   def calculateErrorLevel(value: Double, checks: List[Check]): Int = {
-    println(checks)
     val errorLevels = checks.map(check => check.copy(errorLevel =
       math.max(
         check.comp(value, check.w) match { case true => 0 case false => 1},
