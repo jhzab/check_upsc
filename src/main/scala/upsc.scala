@@ -76,11 +76,7 @@ object UPSC {
       case (param, checkExpr) => output.find(_.startsWith(param)).\/>(
         s"Could not find ${param} in upsc output.") >>= { getThreshold(_, param, checkExpr) }
     }
-
-    if (params.collect{ case -\/(v) => v }.nonEmpty)
-      params.collect{ case -\/(v) => v }.head.left
-    else
-      params.collect{ case \/-(v) => v }.toList.right
+    params.toList.sequenceU
   }
 
   def createReadableOutput(thresholds: List[Threshold], level: Long): String = {
