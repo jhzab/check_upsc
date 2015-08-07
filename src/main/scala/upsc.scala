@@ -6,6 +6,7 @@ import Scalaz._
 import org.parboiled2._
 
 case class Config(dev: String = "", check: Map[String, String] = Map())
+case class Threshold(param: String, errorLevel: Int, value: Double)
 
 object UPSC {
   val upscLocation = "/usr/bin/upsc"
@@ -15,7 +16,7 @@ object UPSC {
       head("check_upsc", "1.0")
       opt[String]('d', "dev") required() action { (x, c) =>
         c.copy(dev = x) } text("dev is a required parameter, ie. USER@HOSTNAME")
-      opt[Map[String, String]]('c', "check") required() unbounded() valueName("k1=v1,...") action { (x, c) =>
+      opt[Map[String, String]]('c', "check") required() unbounded() valueName("k1=v1|k2=v2|...") action { (x, c) =>
           c.copy(check = c.check ++ x) } text("This specifies what to check and when to give a warning or critical message, ie. ups.load=w:80&c:90")
       help("help") text("prints this usage text")
       note("\nBoth --check and --dev need to be defined!")
@@ -46,38 +47,39 @@ object UPSC {
 
   def toEither(t: scala.util.Try[List[Check]]): \/[String, List[Check]] = t match {
     case scala.util.Success(v) => v.right
-    case scala.util.Failure(v) => v.getMessage.left
+    case scala.util.Failure(v) => "Error parsing check expressions!".left
   }
 
-  def calculateThreshold(l: List[Check], value: Double): (String, (Double, Long)) = {
-    val errorLevel = l.map(check =>
-      math.max(check.comp(value, check.w) match { case true => 0l case false => 1l},
-        check.comp(value, check.c) match { case true => 0l case false => 2l})).max
-
-    errorLevel
+  def calculateErrorLevel(value: Double, checks: List[Check]): Int = {
+    val errorLevels = checks.map(check => check.copy(errorLevel =
+      math.max(
+        check.comp(value, check.w) match { case true => 0 case false => 1},
+        check.comp(value, check.c) match { case true => 0 case false => 2}
+      )))
+    println(errorLevels)
+    errorLevels.maxBy(_.errorLevel).errorLevel
   }
 
-  def getThresholds(line: String, param: String, c: String): \/[String, (String, (Double, Long))] = {
+  def getThreshold(line: String, param: String, c: String): \/[String, Threshold] = {
     for {
       value <- getValueFromLine(line)
       checks <- toEither(new ThresholdParser(c).InputLine.run())
-    } yield calculateThreshold(checks, value)
-
-//      case _ => s"Couldn't extract thresholds for $k = $v".left
+    } yield Threshold(param, calculateErrorLevel(value, checks), value)
   }
 
-  def parseOutput(output: Array[String], config: Config): \/[String, Map[String, (Double, Long)]] = {
+  def parseOutput(output: Array[String], config: Config): \/[String, List[Threshold]] = {
     val params = config.check.map{
-      case (k,v) => output.find(_.startsWith(k)).\/>(s"Could not find $k in upsc output.") >>= { getThresholds(_,k,v) }
+      case (param, checkExpr) => output.find(_.startsWith(param)).\/>(
+        s"Could not find ${param} in upsc output.") >>= { getThreshold(_, param, checkExpr) }
     }
 
     if (params.collect{ case -\/(v) => v }.nonEmpty)
-      params.collect{ case -\/(v) => v }.head.left // FIXME
+      params.collect{ case -\/(v) => v }.head.left
     else
-      params.collect{ case \/-(v) => v }.toMap.right
+      params.collect{ case \/-(v) => v }.toList.right
   }
 
-  def createReadableOutput(p: Map[String, (Double, Long)], level: Long): String = {
+  def createReadableOutput(thresholds: List[Threshold], level: Long): String = {
     val msgStart = level match {
       case 3 => "UNKNOWN: "
       case 2 => "CRITICAL: "
@@ -85,23 +87,20 @@ object UPSC {
       case 0 => "OK: "
     }
 
-    msgStart + p.map{ case (k,v) => s"${k}: ${v._1} " }.foldLeft("")(_ + _)
+    msgStart + thresholds.map{t => s"${t.param}: ${t.value} " }.foldLeft("")(_ + _)
   }
 
-  // TODO: add warn:crit values to perfdata
-  def createPerfdataOutput(p: Map[String, (Double, Long)]): String = "| " + p.map{ case (k,v) => s"${k}=${v._1} "}.foldLeft("")(_ + _)
+  def createPerfdataOutput(thresholds: List[Threshold]): String = "| " + thresholds.map{ t => s"${t.param}=${t.value} "}.foldLeft("")(_ + _)
 
-  def getLevel(p: Map[String, (Double, Long)]): \/[String, Long] = p.maxBy(_._2._2)._2._2.right
+  def getLevel(t: List[Threshold]): Int = t.maxBy(_.errorLevel).errorLevel
 
   def main(args: Array[String]): Unit = {
-    val p = new ThresholdParser("(>,80.5,90),(<,30,10)").InputLine.run()
-    println(p)
     val output = for {
       config <- parseConfig(args)
       output <- getUpscOutput(config.dev)
       parsed <- parseOutput(output, config)
-      level <- getLevel(parsed)
-    } yield (createReadableOutput(parsed, level) + createPerfdataOutput(parsed), level)
+    } yield (createReadableOutput(parsed, getLevel(parsed)) +
+      createPerfdataOutput(parsed), getLevel(parsed))
 
     output match {
       case \/-((output,level)) => println(output); sys.exit(level.toInt)
