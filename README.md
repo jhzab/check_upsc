@@ -6,7 +6,7 @@ A nagios plugin for upsc / NUT
 ### Directly calling from command line
 
 ```
-java -jar check_upsc.jar -d 'NAME_OF_UPS'@'HOSTNAME_OF_NUT_SERVER' -c "ups.load=w:80&c:90,ambient.temperature=w:25&c:30"
+java -jar check_upsc.jar -d 'NAME_OF_UPS'@'HOSTNAME_OF_NUT_SERVER' -c "ups.load=(<|60|70)|(>|30|20)"
 ```
 
 ### Nagios command definition
