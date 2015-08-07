@@ -62,7 +62,6 @@ object UPSC {
         check.comp(value, check.w) match { case true => 0 case false => 1},
         check.comp(value, check.c) match { case true => 0 case false => 2}
       )))
-    println(errorLevels)
     errorLevels.maxBy(_.errorLevel).errorLevel
   }
 
